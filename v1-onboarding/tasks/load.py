@@ -7,7 +7,7 @@ import kagglehub
 import os
 
 
-@task(cache=True, cache_version="0.1", container_image=container_image, secret_requests=[union.Secret(key=" ghcr-pull-creds-02")])
+@task(cache=True, cache_version="0.1", container_image=container_image)
 def load_training_data(split_ratio: float = 0.8) -> FlyteDirectory:
     path = kagglehub.dataset_download("imsparsh/flowers-dataset")
 

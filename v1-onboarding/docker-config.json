@@ -1,0 +1,8 @@
+{
+  "auths": {
+
+		"ghcr.io": {
+                        "auth": "<YOUR_AUTH_TOKEN>"
+               }
+ } 
+}

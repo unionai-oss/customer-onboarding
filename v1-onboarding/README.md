@@ -1,4 +1,4 @@
-# example-union-workflows
+# Welcome to Union!
 
 This repository contains examples of end-to-end ML workflows built with **[Union](https://union.ai/)**, showcasing Union-specific features for training, inference, and serving.
 
@@ -11,7 +11,7 @@ This repository contains examples of end-to-end ML workflows built with **[Union
   → [`./orchestration/artifacts.py`](./orchestration/artifacts.py)
 - Train a simple Keras model and generate a **Union Artifact**:  
   → [`./tasks/train.py`](./tasks/train.py)  
-- Run Hyperparameter Optimization for a simple Linear Regression model and track experiments in Weights & Biases:
+- Run Hyperparameter Optimization for a simple Linear Regression model and track experiments in Weights & Biases:   
  → [`./workflows/simple_hpo.py`](./workflows/simple_hpo.py)  
 
 ### 2. **Run Batch Inference at Scale**

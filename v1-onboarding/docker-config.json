@@ -2,7 +2,7 @@
   "auths": {
 
 		"ghcr.io": {
-                        "auth": "<YOUR_AUTH_TOKEN>"
+                        "auth": "<YOUR_AUTH_TOKEN>",
                }
  } 
 }

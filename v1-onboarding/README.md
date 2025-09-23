@@ -7,16 +7,20 @@ This repository contains examples of end-to-end ML workflows built with **[Union
 ### 1. **Train a Keras Model**
 - Build container images using `ImageSpec` with Union's **remote image builder**:  
   → [`./orchestration/container_images.py`](./orchestration/container_images.py)  
-- Train a simple Keras model and generate a **Union Artifact**:  
-  → [`./tasks/train.py`](./tasks/train.py)  
 - Define the model artifact with Union’s native artifact abstraction:  
   → [`./orchestration/artifacts.py`](./orchestration/artifacts.py)
+- Train a simple Keras model and generate a **Union Artifact**:  
+  → [`./tasks/train.py`](./tasks/train.py)  
+- Run Hyperparameter Optimization for a simple Linear Regression model and track experiments in Weights & Biases:
+ → [`./workflows/simple_hpo.py`](./workflows/simple_hpo.py)  
 
 ### 2. **Run Batch Inference at Scale**
-- Perform scalable and parallel inference using Union’s **`map`** construct:  
-  → [`./workflows/predict_conv_model.py`](./workflows/predict_conv_model.py)  
+
 - **Massively accelerate batch inference** with Union **Actors**:  
   → [`./orchestration/actor_env.py`](./orchestration/actor_env.py)  
+- Perform scalable and parallel inference using Union’s **`map`** construct:  
+  → [`./workflows/predict_conv_model.py`](./workflows/predict_conv_model.py)  
+
   - Union Actors eliminate container startup/teardown time  
   - Cache and reuse model loading logic:  
     → [`./tasks/predict.py`](./tasks/predict.py)

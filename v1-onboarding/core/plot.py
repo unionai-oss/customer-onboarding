@@ -10,7 +10,7 @@ def training_metrics_to_markdown_table(history):
 
 
 def generate_md_contents(history: dict) -> str:
-    contents = "# Unions's Super Model 🚀 🚀 🚀\n\n"
+    contents = "# Model Card 🚀\n\n"
     contents = (
         contents
         + "![Unions](https://avatars.githubusercontent.com/u/94206482?s=280&v=4)"

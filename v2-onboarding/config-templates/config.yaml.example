@@ -1,0 +1,23 @@
+# Flyte CLI / SDK connection config for your self-managed Union control plane.
+#
+# Copy to ~/.flyte/config.yaml (or keep it next to the notebooks as config.yaml
+# and export FLYTECTL_CONFIG=$PWD/config.yaml) and fill in your endpoint.
+#
+# You can also generate one interactively:
+#   flyte create config --endpoint dns:///union.<your-company>.com
+#
+# All notebooks connect with a single line:  flyte.init_from_config()
+
+admin:
+  # Your self-managed control plane endpoint (ask your platform team)
+  endpoint: dns:///union.example.internal
+  # For clusters fronted by TLS (typical). Set true only for plaintext dev setups.
+  insecure: false
+  # Auth: self-managed deployments commonly use PKCE against the configured IdP.
+  # DeviceFlow is useful on remote/headless machines.
+  authType: Pkce
+
+# Optional: silence local telemetry/log noise during workshops
+logger:
+  show-source: false
+  level: 1

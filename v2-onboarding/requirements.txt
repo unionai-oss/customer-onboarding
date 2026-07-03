@@ -1,0 +1,22 @@
+# Driver-side (laptop / JupyterLab) dependencies for the v2 workshop notebooks.
+# Task-image dependencies are declared inside each notebook via flyte.Image —
+# do NOT install unionai-reuse or ray locally; they belong in task images only.
+#
+# Kernel requirement: Python 3.12 (must match python_version pinned in every
+# Image.from_debian_base() call, because notebook runs ship pickled code).
+
+flyte==2.5.7
+flyteplugins-ray==2.5.7        # RayJobConfig/HeadNodeConfig/WorkerNodeConfig types (client side)
+flyteplugins-bigquery==2.5.7   # BigQuery task types (client side)
+flyteplugins-vllm==2.5.7       # VLLMAppEnvironment for scripts/apps/vllm_app.py deploys
+
+fastapi>=0.115                 # scripts/apps/fastapi_app.py builds the app object at deploy time
+pydantic>=2.9
+
+jupyterlab>=4.2,<5
+ipykernel>=6.29
+python-dotenv>=1.0,<2
+httpx>=0.27                    # calling deployed apps in 07-apps-and-inference
+pandas>=2.2,<3
+pyarrow>=17
+async-lru==2.3.0               # @alru_cache warm-pool pattern in 04-reusable-containers

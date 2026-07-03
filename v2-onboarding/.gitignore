@@ -1,0 +1,5 @@
+.env
+config.yaml
+.ipynb_checkpoints/
+__pycache__/
+.venv/

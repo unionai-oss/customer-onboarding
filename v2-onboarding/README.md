@@ -1,6 +1,6 @@
 # Union v2 workshops — self-managed on GCP
 
-A workshop series for teams running **Union self-managed on GCP**, covering Flyte v2 / Union 2.x
+A workshop series for teams running Union, covering Flyte v2 / Union 2.x
 authoring patterns, integrations, and the operational judgment to use them well. Built to be
 delivered live (90-minute sessions), but every notebook stands alone for self-paced use.
 

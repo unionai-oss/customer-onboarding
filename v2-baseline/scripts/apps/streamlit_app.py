@@ -1,4 +1,4 @@
-"""Streamlit dashboard app for 07-apps-and-inference.
+"""Review Radar dashboard (Streamlit) for 07-serving.
 
 Deploy from the notebook / shell:
 
@@ -20,20 +20,26 @@ def main() -> None:
     import pandas as pd
     import streamlit as st
 
-    st.set_page_config(page_title="Workshop run dashboard", page_icon="📊")
-    st.title("Workshop scoring dashboard")
+    st.set_page_config(page_title="Review Radar", page_icon="📊")
+    st.title("Review Radar — corpus dashboard")
 
-    text = st.text_input("Text to score", "hello union")
-    st.metric("Score", float(len(text)) * 2.0)
+    text = st.text_input("Try a review", "solid air fryer, works as advertised")
+    pos = sum(w in text.lower() for w in ("love", "solid", "exceeded"))
+    neg = sum(w in text.lower() for w in ("terrible", "disappointed", "broken"))
+    st.metric("Sentiment hint", round(0.5 + 0.15 * (pos - neg), 2))
 
-    st.subheader("Recent scores")
-    st.dataframe(pd.DataFrame({"text": [text], "score": [float(len(text)) * 2.0]}))
+    st.subheader("Corpus snapshot (demo data)")
+    st.dataframe(pd.DataFrame({
+        "product": ["espresso machine", "trail shoes", "headphones", "air fryer"],
+        "avg_stars": [4.1, 2.9, 3.8, 4.4],
+        "reviews": [1240, 830, 2210, 990],
+    }))
 
 
 file_name = pathlib.Path(__file__).name
 
 app_env = flyte.app.AppEnvironment(
-    name="workshop-dashboard",
+    name="review-radar-dashboard",
     image=flyte.Image.from_debian_base(python_version=(3, 12)).with_pip_packages(
         "streamlit==1.41.1", "pandas==2.2.3"
     ),

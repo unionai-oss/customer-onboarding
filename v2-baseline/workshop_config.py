@@ -24,33 +24,41 @@ from dotenv import load_dotenv
 load_dotenv()  # reads .env sitting next to the notebooks
 
 
+def _get(*names: str, default: str = "") -> str:
+    """First set env var among `names` (legacy names kept for older .env files)."""
+    for n in names:
+        v = os.getenv(n)
+        if v:
+            return v
+    return default
+
+
 @dataclass(frozen=True)
 class WorkshopSettings:
     project: str
     domain: str
     registry: str
-    gcs_bucket: str
-    bq_project: str
-    bq_dataset: str
+    object_store: str
+    warehouse_project: str
+    warehouse_dataset: str
     hf_model_id: str
 
 
 WS = WorkshopSettings(
-    project=os.getenv("WORKSHOP_PROJECT", "onboarding"),
-    domain=os.getenv("WORKSHOP_DOMAIN", "development"),
-    registry=os.getenv("GAR_REGISTRY", ""),
-    gcs_bucket=os.getenv("GCS_BUCKET", ""),
-    bq_project=os.getenv("BQ_PROJECT", ""),
-    bq_dataset=os.getenv("BQ_DATASET", ""),
-    hf_model_id=os.getenv("HF_MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct"),
+    project=_get("WORKSHOP_PROJECT", default="onboarding"),
+    domain=_get("WORKSHOP_DOMAIN", default="development"),
+    registry=_get("IMAGE_REGISTRY", "GAR_REGISTRY"),
+    object_store=_get("OBJECT_STORE_URI", "GCS_BUCKET"),
+    warehouse_project=_get("WAREHOUSE_PROJECT", "BQ_PROJECT"),
+    warehouse_dataset=_get("WAREHOUSE_DATASET", "BQ_DATASET"),
+    hf_model_id=_get("HF_MODEL_ID", default="Qwen/Qwen2.5-0.5B-Instruct"),
 )
 
 
 def preflight() -> "WorkshopSettings":
     """Print the resolved settings and flag anything missing. Returns WS."""
-    missing = [f for f in ("registry", "gcs_bucket") if not getattr(WS, f)]
     print(f"project={WS.project} domain={WS.domain}")
-    print(f"registry={WS.registry or '<unset>'} gcs_bucket={WS.gcs_bucket or '<unset>'}")
-    if missing:
-        print(f"NOTE: unset in .env: {', '.join(missing)} — some cells will need them.")
+    print(f"registry={WS.registry or '<managed/unset>'} object_store={WS.object_store or '<unset>'}")
+    if not WS.object_store:
+        print("NOTE: OBJECT_STORE_URI unset — the from_existing_remote cells in 02 need it.")
     return WS

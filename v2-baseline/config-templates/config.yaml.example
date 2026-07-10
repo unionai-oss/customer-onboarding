@@ -1,0 +1,25 @@
+# Flyte CLI / SDK connection config — fill in per customer deployment.
+#
+# Copy to ~/.flyte/config.yaml (or keep it next to the notebooks as config.yaml)
+# and set the endpoint for the customer's Union deployment. The notebooks work
+# the same on Serverless, BYOC, and self-managed.
+#
+# You can also generate one interactively:
+#   flyte create config --endpoint dns:///<union-endpoint>
+#
+# All notebooks connect with a single line:  flyte.init_from_config()
+
+admin:
+  # The Union control-plane endpoint for this engagement
+  endpoint: dns:///<union-endpoint>
+image:
+  builder: remote
+task:
+  org: <org-name>
+  project: onboarding
+  domain: development
+
+# Optional: silence local telemetry/log noise during workshops
+logger:
+  show-source: false
+  level: 1

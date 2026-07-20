@@ -1,26 +1,27 @@
 # Appendix A · Adapting this workshop to a customer deployment
 
-The notebooks are **deployment-agnostic**: the same code runs on Union Serverless, BYOC,
-and self-managed, on any cloud. What changes per engagement is (a) a handful of values in
+The notebooks are **deployment-agnostic**: the same code runs on Union BYOC and
+self-managed, on any cloud. What changes per engagement is (a) a handful of values in
 `.env` / `config.yaml`, and (b) which platform capabilities need to be confirmed or
 enabled before certain chapters. This appendix is the prep sheet.
 
 ## 1. Who operates what
 
-| Capability | Serverless | BYOC | Self-managed |
-|---|---|---|---|
-| Control plane | Union | Union | Customer (Union-supplied charts) |
-| Data plane / clusters | Union | Customer account, Union-managed | Customer |
-| Image builder + registry | Union-managed | Union-managed (customer registry possible) | Customer registry (ECR / Artifact Registry / ACR) |
-| Object store | Union-managed | Customer bucket | Customer bucket |
-| GPU / spot capacity | Union pools | Customer node pools | Customer node pools |
-| Plugins (Ray, Spark, connectors) | Union enables | Union enables | Customer applies Helm config, Union guides |
-| Serving (apps) | Union enables | Union enables | Customer applies Helm config, Union guides |
-| SSO / identity | Union org | Customer IdP | Customer IdP |
-| Cluster access (`kubectl`) | — | Customer | Customer |
+| Capability | BYOC | Self-managed |
+|---|---|---|
+| Control plane | Union | Customer (Union-supplied charts) |
+| Data plane / clusters | Customer account, Union-managed | Customer |
+| Image builder + registry | Union-managed (customer registry possible) | Customer registry (ECR / Artifact Registry / ACR) |
+| Object store | Customer bucket | Customer bucket |
+| GPU / spot capacity | Customer node pools | Customer node pools |
+| Queues (scheduling lanes: global concurrency cap, depth, priority) | Customer defines via CLI/UI, Union guides | Customer defines via CLI/UI, Union guides |
+| Plugins (Ray, Spark, connectors) | Union enables | Customer applies Helm config, Union guides |
+| Serving (apps) | Union enables | Customer applies Helm config, Union guides |
+| SSO / identity | Customer IdP | Customer IdP |
+| Cluster access (`kubectl`) | Customer | Customer |
 
-Sections of the notebooks marked *"Under the hood"* assume data-plane access (`kubectl`);
-skip them on Serverless engagements.
+Sections of the notebooks marked *"Under the hood"* assume data-plane access (`kubectl`),
+which both models provide.
 
 ## 2. Per-engagement fill-ins
 
@@ -50,14 +51,15 @@ Before **Session 1** (00-02):
 Before **Session 2** (03-04):
 
 - [ ] Optional: spot/preemptible capacity for the `interruptible=True` demo (04 §4)
-- [ ] Optional: a named queue to show `queue=` targeting (04 §4)
+- [ ] A named queue with a concurrency cap, to demo cluster-wide bounding (03 §2) and
+      `queue=` targeting (04 §4) — e.g. a `moderation-api` queue capped at ~20 concurrent actions
 
 Before **Session 3** (05-06):
 
 - [ ] Reusable containers verified on a toy env (no platform change needed; quota
       headroom for ~8 small pods helps)
 - [ ] **Ray plugin enabled** for 06 §3 (KubeRay operator + plugin enablement — on
-      self-managed this is the customer's Helm change; on Serverless/BYOC ask Union).
+      self-managed this is the customer's Helm change; on BYOC ask Union).
       06 §§1-2 need nothing special, so the session still works if this slips.
 
 Before **Session 4** (07-08):
@@ -73,7 +75,7 @@ Point the customer's platform team at the matching deployment guide in the Union
 (Deployment section): **BYOC** (per-cloud data-plane setup) or **Self-managed** (per-cloud
 install: AWS / GCP / Azure / OCI / CoreWeave / Nebius / generic, plus configuration pages
 for image-builder, plugins, node-pools, secrets, authentication, monitoring, persistent
-logs, multi-cluster). Serverless needs no platform prep.
+logs, multi-cluster).
 
 ## 5. Extending the baseline per customer
 

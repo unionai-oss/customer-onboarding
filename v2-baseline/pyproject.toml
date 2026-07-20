@@ -19,6 +19,7 @@ dependencies = [
     "pydantic>=2.9",
     "jupyterlab>=4.2,<5",
     "ipykernel>=6.29",
+    "ipywidgets>=8.1",              # rich/flyte live progress display in Jupyter (silences the ipywidgets warning)
     "python-dotenv>=1.0,<2",
     "httpx>=0.27",                  # calling deployed apps in 07-serving
     "pandas>=2.2,<3",

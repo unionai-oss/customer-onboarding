@@ -1,7 +1,7 @@
 # Union v2 baseline workshop — Review Radar
 
 The **baseline** workshop series for customer engagements on Flyte v2 / Union 2.x. It is
-deployment-agnostic (Serverless, BYOC, self-managed — any cloud) and built to be adapted
+deployment-agnostic (BYOC or self-managed, any cloud) and built to be adapted
 per customer: see [appendix A](./appendix/A-deployment-adaptation.md) for the prep sheet.
 
 The series tells one story, **Review Radar**, from raw data to a production system:
@@ -32,24 +32,35 @@ Give the platform team the **capability checklist** in
 
 ## 🛠️ Setup
 
-1. **Python 3.12** — the kernel version must match the task images (all pinned to 3.12):
+This workshop uses [**uv**](https://docs.astral.sh/uv/) (install it with
+`curl -LsSf https://astral.sh/uv/install.sh | sh` or `brew install uv`).
+
+1. **Create the env and install** — `uv sync` reads `pyproject.toml` + `uv.lock`, creates a
+   Python 3.12 `.venv`, and installs the exact locked dependencies:
 
    ```bash
-   uv venv --python 3.12 && source .venv/bin/activate
-   uv pip install -r requirements.txt
+   uv sync
    ```
+
+   Python 3.12 is enforced by `requires-python` in `pyproject.toml` — it must match the
+   task images (all pinned to 3.12), because notebook runs ship pickled code.
 
 2. **Connect** — copy [`config-templates/config.yaml.example`](./config-templates/config.yaml.example)
    to `~/.flyte/config.yaml` and set the engagement's endpoint, or:
 
    ```bash
-   flyte create config --endpoint dns:///<union-endpoint>
+   uv run flyte create config --endpoint dns:///<union-endpoint>
    ```
 
 3. **Workshop settings** — `cp .env.example .env` and fill in per
    [appendix A §2](./appendix/A-deployment-adaptation.md).
 
-4. **Verify** — run [00-setup-and-verify](./00-setup-and-verify.ipynb) top to bottom.
+4. **Launch & verify** — start JupyterLab in the env and run
+   [00-setup-and-verify](./00-setup-and-verify.ipynb) top to bottom:
+
+   ```bash
+   uv run jupyter lab
+   ```
 
 ## 📓 How notebooks run remotely (the four rules)
 
@@ -68,6 +79,8 @@ files, no git. The four rules that follow (taught in notebook 00):
 ```
 v2-baseline/
 ├── 00…09 *.ipynb            # the chapters (session map above)
+├── pyproject.toml           # driver-side deps (source of truth) + Python 3.12 pin
+├── uv.lock                  # exact locked resolution (uv sync installs this)
 ├── workshop_config.py       # .env loader — CLIENT-SIDE ONLY (rule 1)
 ├── config-templates/        # flyte CLI config template
 ├── scripts/                 # things that need deployment (rules 3-4)
@@ -95,7 +108,8 @@ This folder is the baseline — copy it (or branch) per engagement and:
 
 ## 📌 Versions
 
-Everything is exact-pinned for workshop reproducibility: **flyte 2.5.7** (SDK + plugins) —
-see [requirements.txt](./requirements.txt). Task-image pins live inside each notebook's
-`flyte.Image` definitions. To upgrade: bump `flyte` and `flyteplugins-*` together,
-re-run notebook 00, then the rest.
+Everything is exact-pinned for workshop reproducibility: **flyte 2.5.7** (SDK + plugins) in
+[`pyproject.toml`](./pyproject.toml), with the full resolution frozen in
+[`uv.lock`](./uv.lock) — `uv sync` reproduces it byte-for-byte. Task-image pins live inside
+each notebook's `flyte.Image` definitions. To upgrade: edit the pin in `pyproject.toml`,
+run `uv lock` to refresh the lockfile, then `uv sync`.

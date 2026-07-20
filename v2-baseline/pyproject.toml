@@ -1,0 +1,32 @@
+[project]
+name = "v2-baseline-workshop"
+version = "0.1.0"
+description = "Union v2 baseline workshop (Review Radar) — driver-side dependencies"
+# Kernel requirement: Python 3.12, pinned to match python_version in every
+# Image.from_debian_base() call (notebook runs ship pickled code, so the kernel
+# and task-image Python minor versions must agree).
+requires-python = ">=3.12,<3.13"
+
+# Driver-side (laptop / JupyterLab) dependencies only. Task-image dependencies
+# are declared inside each notebook via flyte.Image — do NOT add unionai-reuse
+# or ray here; they belong in task images only.
+dependencies = [
+    "flyte>=2.5.11",
+    "flyteplugins-ray>=2.5.11",      # RayJobConfig/HeadNodeConfig/WorkerNodeConfig types (client side)
+    "flyteplugins-bigquery>=2.5.11", # BigQuery task types (client side)
+    "flyteplugins-vllm>=2.5.11",     # VLLMAppEnvironment for scripts/apps/vllm_app.py deploys
+    "fastapi>=0.115",               # scripts/apps/fastapi_app.py builds the app object at deploy time
+    "pydantic>=2.9",
+    "jupyterlab>=4.2,<5",
+    "ipykernel>=6.29",
+    "python-dotenv>=1.0,<2",
+    "httpx>=0.27",                  # calling deployed apps in 07-serving
+    "pandas>=2.2,<3",
+    "pyarrow>=17",
+    "async-lru==2.3.0",             # @alru_cache warm-pool pattern in 05-reusable-containers
+]
+
+# Non-packaged project: uv installs the dependencies into the environment but
+# does not try to build this folder as a wheel.
+[tool.uv]
+package = false

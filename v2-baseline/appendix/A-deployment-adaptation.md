@@ -32,9 +32,9 @@ Collect these during prep and put them in `.env` + `config-templates/config.yaml
 | Control-plane endpoint | `config.yaml` `admin.endpoint` | `dns:///...` |
 | Org / project / domain | `config.yaml` `task.*`, `.env` | Create a dedicated workshop project |
 | `IMAGE_REGISTRY` | `.env` | Empty where Union-managed. AWS: `<acct>.dkr.ecr.<region>.amazonaws.com/<repo>` · GCP: `<region>-docker.pkg.dev/<proj>/<repo>` · Azure: `<registry>.azurecr.io/<repo>` |
-| `OBJECT_STORE_URI` | `.env` | With scheme: `s3://` / `gs://` / `abfs://` — used by the `from_existing_remote` cells in 02 |
+| `OBJECT_STORE_URI` | `.env` | With scheme: `s3://` / `gs://` / `abfs://`, used by the `from_existing_remote` cells in 02 |
 | Warehouse (optional) | `.env` | 02 §4 ships a BigQuery example; swap the cell for Snowflake/Databricks to match the customer |
-| GPU device names | notebook cells | `flyte.GPU(device=...)` in 01/06/07 — set to what the deployment schedules (T4/L4/A100/H100/...) |
+| GPU device names | notebook cells | `flyte.GPU(device=...)` in 01/06/07, set to what the deployment schedules (T4/L4/A100/H100/...) |
 | HF model (optional) | `.env` | vLLM add-on in 07 |
 
 ## 3. Capability checklist by session
@@ -52,22 +52,22 @@ Before **Session 2** (03-04):
 
 - [ ] Optional: spot/preemptible capacity for the `interruptible=True` demo (04 §4)
 - [ ] A named queue with a concurrency cap, to demo cluster-wide bounding (03 §2) and
-      `queue=` targeting (04 §4) — e.g. a `moderation-api` queue capped at ~20 concurrent actions
+      `queue=` targeting (04 §4), e.g. a `moderation-api` queue capped at ~20 concurrent actions
 
 Before **Session 3** (05-06):
 
 - [ ] Reusable containers verified on a toy env (no platform change needed; quota
       headroom for ~8 small pods helps)
-- [ ] **Ray plugin enabled** for 06 §3 (KubeRay operator + plugin enablement — on
+- [ ] **Ray plugin enabled** for 06 §3 (KubeRay operator + plugin enablement: on
       self-managed this is the customer's Helm change; on BYOC ask Union).
       06 §§1-2 need nothing special, so the session still works if this slips.
 
 Before **Session 4** (07-08):
 
 - [ ] Serving/apps enabled in the deployment
-- [ ] One small GPU schedulable for the vLLM add-on — or agree to skip 07 §3
+- [ ] One small GPU schedulable for the vLLM add-on, or agree to skip 07 §3
 - [ ] `flyte.sandbox` chapters (08) need only a working image builder; note the API is
-      **alpha** — re-verify on the pinned SDK before the session
+      **alpha**. Re-verify on the pinned SDK before the session
 
 ## 4. Deployment-specific doc entry points
 
@@ -77,12 +77,21 @@ install: AWS / GCP / Azure / OCI / CoreWeave / Nebius / generic, plus configurat
 for image-builder, plugins, node-pools, secrets, authentication, monitoring, persistent
 logs, multi-cluster).
 
+This appendix records *ownership and readiness*: who sets a thing up and whether it's done
+for a given engagement. It is **not** a how-to. For the actual configuration steps, use the
+docs above, plus these the notebooks link to directly:
+
+- **Queues** (create a queue, set its concurrency cap / depth / priority):
+  <https://www.union.ai/docs/v2/union/user-guide/task-configuration/queues/>
+- **Ray plugin enablement** (self-managed): the *plugins* configuration page in the
+  Self-managed deployment guide.
+
 ## 5. Extending the baseline per customer
 
-- **Swap the story's ingest** (01/02) for the customer's real source — an API, a bucket
-  listing, a warehouse query — keeping task names so later chapters still read.
+- **Swap the story's ingest** (01/02) for the customer's real source (an API, a bucket
+  listing, a warehouse query), keeping task names so later chapters still read.
 - **Swap the warehouse cell** (02 §4) to the customer's connector.
 - **Re-scope 06 §3**: if the customer has no Ray history, demo it briefly and spend the
   time on the decision framework; if they're Ray-heavy, extend with their real workload.
-- **Add customer-specific appendices** rather than editing chapters — keeps the baseline
+- **Add customer-specific appendices** rather than editing chapters, which keeps the baseline
   mergeable back.

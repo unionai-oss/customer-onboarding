@@ -13,6 +13,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "flyte>=2.5.11",
     "flyteplugins-ray>=2.5.11",      # RayJobConfig/HeadNodeConfig/WorkerNodeConfig types (client side)
+    "kubernetes>=27",                # undeclared dep of flyteplugins-ray: used when serializing the Ray pod spec
     "flyteplugins-bigquery>=2.5.11", # BigQuery task types (client side)
     "flyteplugins-vllm>=2.5.11",     # VLLMAppEnvironment for scripts/apps/vllm_app.py deploys
     "fastapi>=0.115",               # scripts/apps/fastapi_app.py builds the app object at deploy time

@@ -66,6 +66,16 @@ class ScoreResponse(BaseModel):
     latency_ms: float
 
 
+@app.get("/")
+async def root() -> dict:
+    # Landing page so opening the app URL is self-explanatory (no route on "/" 404s otherwise).
+    return {
+        "service": "Review Radar API",
+        "model": app.state.model_kind,
+        "endpoints": {"health": "/health", "score": "POST /score", "docs": "/docs"},
+    }
+
+
 @app.get("/health")
 async def health() -> dict:
     return {"status": "healthy", "model": app.state.model_kind}
@@ -86,14 +96,20 @@ app_env = FastAPIAppEnvironment(
     name="review-radar-api",
     app=app,
     parameters=[
-        # Resolve the model from the latest run of the chapter-06 training task
+        # Resolve the model from the latest succeeded run of the chapter-06 training task
         # and expose its downloaded path to the app via MODEL_PATH.
+        #
+        # NOTE: no `task_auto_version`. That option resolves a *deployed/registered* task
+        # version (via Task.get), which the workshop never creates: chapter 06 RUNS
+        # train_model interactively (a pickled bundle), it does not `flyte deploy` it. With
+        # just `task_name`, RunOutput lists the latest succeeded RUN of that task by name,
+        # which the interactive run satisfies. Add `task_auto_version="latest"` only once
+        # the training task is actually deployed.
         Parameter(
             name="model",
             value=RunOutput(
                 type="file",
                 task_name="training.train_model",
-                task_auto_version="latest",
             ),
             download=True,
             env_var=MODEL_PATH_ENV,
@@ -117,5 +133,10 @@ if __name__ == "__main__":
     if os.environ.get("SKIP_MODEL_PARAM"):     # deploy before any training run exists
         app_env.parameters = []
     deployment = flyte.serve(app_env)
-    print(f"Deployed: {deployment.url}")
-    print(f"Swagger:  {deployment.url}/docs")
+    # deployment.url is the CONSOLE page, not the serving endpoint. Fetch the endpoint
+    # (public ingress URL) with flyte.remote.App.get(name).endpoint or `flyte get app`.
+    print(f"Deployed {app_env.name}. Console: {deployment.url}")
+    import flyte.remote
+    deployed = flyte.remote.App.get(name=app_env.name)
+    print(f"Endpoint: {deployed.endpoint}")
+    print(f"Swagger:  {deployed.endpoint}/docs")

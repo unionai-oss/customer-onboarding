@@ -56,4 +56,6 @@ if __name__ == "__main__":
     else:
         flyte.init_from_config()    # running on your laptop: deploy it
         deployment = flyte.serve(app_env)
-        print(f"Deployed: {deployment.url}")
+        import flyte.remote
+        print(f"Deployed {app_env.name}. Console: {deployment.url}")
+        print(f"Endpoint: {flyte.remote.App.get(name=app_env.name).endpoint}")

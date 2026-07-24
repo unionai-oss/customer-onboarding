@@ -39,5 +39,7 @@ vllm_app = VLLMAppEnvironment(
 if __name__ == "__main__":
     flyte.init_from_config()
     deployment = flyte.serve(vllm_app)
-    print(f"Deployed: {deployment.url}")
-    print(f"Chat completions endpoint: {deployment.url}/v1/chat/completions")
+    import flyte.remote
+    endpoint = flyte.remote.App.get(name=vllm_app.name).endpoint
+    print(f"Deployed {vllm_app.name}. Console: {deployment.url}")
+    print(f"Chat completions endpoint: {endpoint}/v1/chat/completions")

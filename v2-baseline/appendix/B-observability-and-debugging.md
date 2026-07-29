@@ -33,13 +33,3 @@ The distinction that keeps operational reviews sane. First-pass classification:
 **Escalation packet for Union support:** run URL · action name · task logs (or note if
 missing) · `kubectl describe pod` + namespace events · what changed
 (SDK version, image, chart version). That set resolves the majority of tickets in one pass.
-
-## Exit codes worth memorizing
-
-| Code | Meaning | Typical cause |
-|---|---|---|
-| 137 | SIGKILL | OOMKilled (check for the OOM event) or forced eviction |
-| 143 | SIGTERM | Graceful shutdown: abort, spot reclaim, scale-down |
-| 1 | App error | Unhandled Python exception (read the traceback) |
-| 126/127 | Command not found / not executable | Broken image entrypoint, usually a custom base image |
-

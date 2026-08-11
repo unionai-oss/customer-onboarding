@@ -23,9 +23,9 @@ stands alone for self-paced use. Built for live delivery in 90-minute sessions.
 | **2** | [03-processing-at-scale](./03-processing-at-scale.ipynb) · [04-caching-and-reproducibility](./04-caching-and-reproducibility.ipynb) | Enrich every review in parallel; make iteration cheap and releases reproducible | Fan-out/fan-in, retries/timeouts, OOM recovery, traces, signaling · cache behaviors, deterministic builds, spot/queues |
 | **3** | [05-reusable-containers](./05-reusable-containers.ipynb) · [06-training-at-scale](./06-training-at-scale.ipynb) | Score the whole corpus on warm pods; train the sentiment model + HPO | ReusePolicy + micro-batching · training artifacts, sweep on Union primitives vs **Ray**, decision framework |
 | **4** | [07-serving](./07-serving.ipynb) · [08-agents-and-sandboxing](./08-agents-and-sandboxing.ipynb) | The model goes live; an agent triages reviews on top of it | Apps + train→serve `RunOutput` wiring, autoscaling, vLLM · code sandbox, code mode (Monty), agent loop from primitives |
-| **5** *(for v1 estates)* | [09-migration-v1-to-v2](./09-migration-v1-to-v2.ipynb) + [appendices](./appendix/) | Bring the existing estate along | Concept map, ported pipeline, rollout strategy |
+| **5** *(for v1 estates)* | [09-migration-v1-to-v2](./09-migration-v1-to-v2.ipynb) · [10-event-driven-cd](./10-event-driven-cd.ipynb) + [appendices](./appendix/) | Bring the existing estate along | Concept map, ported pipeline, rollout strategy · version labels as release pointers, version-ignorant external callers, rollback, tracing runs to exact code |
 
-If you are short on time, the story core is **00 → 07** in order; 08 and 09 detach cleanly.
+If you are short on time, the story core is **00 → 07** in order; 08, 09 and 10 detach cleanly.
 
 Give the platform team the **capability checklist** in
 [appendix A](./appendix/A-deployment-adaptation.md) at least a week before sessions 3-4.
@@ -86,6 +86,7 @@ v2-baseline/
 ├── scripts/                 # things that need deployment (rules 3-4)
 │   ├── apps/                # Review Radar API (+ Streamlit, vLLM) for 07
 │   ├── migration/           # v1 vs v2 side-by-side pipeline for 09
+│   ├── event_driven_cd/     # release labels + trigger pointers for 10
 │   ├── triggers_deploy.py   # nightly-ingest schedule example
 │   └── remote_task_deploy.py# shared task for the cross-team demo (02)
 ├── appendix/

@@ -1,10 +1,10 @@
 """Review Radar serving app for 07-serving.
 
-Serves the sentiment model trained by `training.train_model` (chapter 06). At
-deploy time, Flyte resolves the latest run of that task, downloads the model
-artifact, and exposes its path via the MODEL_PATH env var. If no training run
-exists yet, the app falls back to a keyword heuristic so the workshop can run
-chapters out of order.
+Serves the sentiment model published by `model_registry.publish_model` (chapter
+06). At deploy time, Flyte resolves the latest succeeded run of that task,
+downloads the model artifact, and exposes its path via the MODEL_PATH env var.
+If no publish run exists yet, the app falls back to a keyword heuristic so the
+workshop can run chapters out of order.
 
 Lives in a .py file (not a notebook cell) because app deployment is not
 supported from interactive sessions. Deploy from the notebook with:
@@ -96,20 +96,21 @@ app_env = FastAPIAppEnvironment(
     name="review-radar-api",
     app=app,
     parameters=[
-        # Resolve the model from the latest succeeded run of the chapter-06 training task
-        # and expose its downloaded path to the app via MODEL_PATH.
+        # Resolve the model from the latest succeeded run of chapter 06's publish task
+        # and expose its downloaded path to the app via MODEL_PATH. Swap task_name for
+        # run_name="..." to pin one specific model version (chapter 06 §4).
         #
         # NOTE: no `task_auto_version`. That option resolves a *deployed/registered* task
         # version (via Task.get), which the workshop never creates: chapter 06 RUNS
-        # train_model interactively (a pickled bundle), it does not `flyte deploy` it. With
+        # publish_model interactively (a pickled bundle), it does not `flyte deploy` it. With
         # just `task_name`, RunOutput lists the latest succeeded RUN of that task by name,
         # which the interactive run satisfies. Add `task_auto_version="latest"` only once
-        # the training task is actually deployed.
+        # the publish task is actually deployed.
         Parameter(
             name="model",
             value=RunOutput(
                 type="file",
-                task_name="training.train_model",
+                task_name="model_registry.publish_model",
             ),
             download=True,
             env_var=MODEL_PATH_ENV,

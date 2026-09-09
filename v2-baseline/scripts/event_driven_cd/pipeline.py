@@ -41,10 +41,10 @@ env = flyte.TaskEnvironment(
     resources=flyte.Resources(cpu="1", memory="512Mi"),
 )
 
-EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+EPOCH = datetime(1980, 1, 1, tzinfo=timezone.utc)
 
 
 @env.task
 async def ingest(object_key: str = "", event_time: datetime = EPOCH) -> str:
-    """Stand-in for the real event-driven pipeline body."""
+    """Stand-in for the real event-driven pipeline body work."""
     return f"processed {object_key} (event at {event_time.isoformat()}) as version {flyte.ctx().version}"

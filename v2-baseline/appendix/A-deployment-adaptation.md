@@ -50,17 +50,24 @@ Before **Session 1** (00-02):
 
 Before **Session 2** (03-04):
 
-- [ ] Optional: spot/preemptible capacity for the `interruptible=True` demo (04 §4)
-- [ ] A named queue with a concurrency cap, to demo cluster-wide bounding (03 §2) and
+- [ ] **Reusable containers** verified on a toy env for 03 §2 (no platform change needed;
+      quota headroom for ~8 small pods helps)
+- [ ] A named queue with a concurrency cap, to demo cluster-wide bounding (03 §3) and
       `queue=` targeting (04 §4), e.g. a `moderation-api` queue capped at ~20 concurrent actions
+- [ ] Optional: spot/preemptible capacity for the `interruptible=True` demo (04 §4)
 
 Before **Session 3** (05-06):
 
-- [ ] Reusable containers verified on a toy env (no platform change needed; quota
-      headroom for ~8 small pods helps)
-- [ ] **Ray plugin enabled** for 06 §3 (KubeRay operator + plugin enablement: on
-      self-managed this is the customer's Helm change; on BYOC ask Union).
-      06 §§1-2 need nothing special, so the session still works if this slips.
+- [ ] Nothing platform-side for 05 §§1-5; the OOM and checkpoint demos run on default resources
+- [ ] For 05 §6 (**recover**): confirm the deployment's backend supports it. If the control
+      plane's `flyteidl2` build predates `RunSpec.relation`, `recover=True` fails with
+      `NotImplementedError`; `rerun` and `fork` still work. Ask Union (BYOC) or check the
+      chart version (self-managed)
+- [ ] For 06 §2: the object-store path where the customer's **externally-trained weights**
+      land, and read access for task pods. Without it the chapter falls back to its
+      stand-in trainer, which still demonstrates the pattern
+- [ ] Optional, for 06 §3: an `HF_TOKEN` secret (`flyte create secret HF_TOKEN`) if they
+      want to prefetch a gated HuggingFace model, plus object-store headroom for the weights
 
 Before **Session 4** (07-08):
 

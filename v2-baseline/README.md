@@ -9,7 +9,7 @@ The series tells one story, **Review Radar**, from raw data to a production syst
 ```
 raw reviews ─▶ durable datasets ─▶ parallel processing ─▶ cached features
                                                               │
-      agents ◀─ live model API ◀─ trained model ◀─ warm-pool scoring
+      agents ◀─ live model API ◀─ published model ◀─ warm-pool scoring
 ```
 
 Every chapter advances the story with new platform capabilities, and every chapter also
@@ -21,9 +21,9 @@ stands alone for self-paced use. Built for live delivery in 90-minute sessions.
 |---|---|---|---|
 | **1** | [00-setup-and-verify](./00-setup-and-verify.ipynb) · [01-authoring-fundamentals](./01-authoring-fundamentals.ipynb) · [02-data-flow](./02-data-flow.ipynb) | Connect; generate the review corpus; land it as durable datasets | Notebook→remote execution, TaskEnvironments, images, resources, File/Dir/DataFrame, secrets, connectors |
 | **2** | [03-processing-at-scale](./03-processing-at-scale.ipynb) · [04-caching-and-reproducibility](./04-caching-and-reproducibility.ipynb) | Enrich and score every review in parallel on warm pods; make iteration cheap and releases reproducible | Fan-out/fan-in, `ReusePolicy` warm pools + warm state, map `concurrency` vs Union Queues, high-parallelism failure modes · cache behaviors, deterministic builds, spot |
-| **3** | [05-resilience-and-recovery](./05-resilience-and-recovery.ipynb) · [06-training-at-scale](./06-training-at-scale.ipynb) | Make the pipeline survive failure; train the sentiment model + HPO | Retries/timeouts, OOM recovery, `flyte.Checkpoint`, `@flyte.trace` · training artifacts, sweep on Union primitives vs **Ray**, decision framework |
-| **4** | [07-serving](./07-serving.ipynb) · [08-agents-and-sandboxing](./08-agents-and-sandboxing.ipynb) | The model goes live; an agent triages reviews on top of it | Apps + train→serve `RunOutput` wiring, autoscaling, vLLM · code sandbox, code mode (Monty), agent loop from primitives |
-| **5** *(for v1 estates)* | [09-migration-v1-to-v2](./09-migration-v1-to-v2.ipynb) · [10-event-driven-cd](./10-event-driven-cd.ipynb) + [appendices](./appendix/) | Bring the existing estate along | Concept map, ported pipeline, rollout strategy · version labels as release pointers, version-ignorant external callers, rollback, tracing runs to exact code |
+| **3** | [05-resilience-and-recovery](./05-resilience-and-recovery.ipynb) · [06-model-artifacts](./06-model-artifacts.ipynb) | Make the pipeline survive failure; give the model an identity | Retries/timeouts, OOM recovery, `flyte.Checkpoint`, `@flyte.trace`, rerun/recover/fork · staging external weights, `flyte.prefetch` for HF models, pinning/promoting a version, what fires on a new one |
+| **4** | [07-serving](./07-serving.ipynb) · [08-agents-and-sandboxing](./08-agents-and-sandboxing.ipynb) | The model goes live; an agent triages reviews on top of it | Apps + publish→serve `RunOutput` wiring, autoscaling, vLLM · code sandbox, code mode (Monty), agent loop from primitives |
+| **5** *(for v1 estates)* | [09-migration-v1-to-v2](./09-migration-v1-to-v2.ipynb) · [10-event-driven-cd](./10-event-driven-cd.ipynb) + [appendices](./appendix/) | Bring the existing estate along | Concept map (**including v1 Artifacts**), ported pipeline, rollout strategy · version labels as release pointers, webhook app, rollback, tracing runs to exact code |
 
 If you are short on time, the story core is **00 → 07** in order; 08, 09 and 10 detach cleanly.
 
@@ -62,10 +62,10 @@ This workshop uses [**uv**](https://docs.astral.sh/uv/) (install it with
    uv run jupyter lab
    ```
 
-## 📓 How notebooks run remotely (the four rules)
+## 📓 How notebooks run remotely (the five rules)
 
 Tasks defined in notebook cells ship to the cluster as **pickled code bundles**: no
-files, no git. The four rules that follow (taught in notebook 00):
+files, no git. The five rules that follow (taught in notebook 00):
 
 1. Helpers used inside task bodies live in **notebook cells or installed packages**,
    never imported from local modules like `workshop_config.py` (client-side only).
@@ -73,6 +73,8 @@ files, no git. The four rules that follow (taught in notebook 00):
 3. `flyte.deploy()` (triggers, connectors, apps, named remote tasks) doesn't work from
    notebooks → those live in [`scripts/`](./scripts/), driven with `!python scripts/...` cells.
 4. `Environment(include=...)` (extra-file bundling) also requires running from a file.
+5. `fork` (05 §6) needs file-based tasks: a pickled bundle renames every action on any
+   edit, so nothing is reused.
 
 ## 📁 Repo structure
 
@@ -85,6 +87,7 @@ v2-baseline/
 ├── config-templates/        # flyte CLI config template
 ├── scripts/                 # things that need deployment (rules 3-4)
 │   ├── apps/                # Review Radar API (+ Streamlit, vLLM) for 07
+│   ├── fork_demo/           # file-based pipeline for the fork demo in 05 §6
 │   ├── migration/           # v1 vs v2 side-by-side pipeline for 09
 │   ├── event_driven_cd/     # release labels + trigger pointers for 10
 │   ├── triggers_deploy.py   # nightly-ingest schedule example
@@ -109,8 +112,9 @@ This folder is the baseline. Copy it (or branch) per engagement and:
 
 ## 📌 Versions
 
-Everything is exact-pinned for workshop reproducibility: **flyte 2.5.7** (SDK + plugins) in
-[`pyproject.toml`](./pyproject.toml), with the full resolution frozen in
-[`uv.lock`](./uv.lock). `uv sync` reproduces it byte-for-byte. Task-image pins live inside
+Everything is exact-pinned for workshop reproducibility: **flyte 2.6.13** (SDK + plugins)
+plus **flyteplugins-union 0.10.2** in [`pyproject.toml`](./pyproject.toml), with the full
+resolution frozen in [`uv.lock`](./uv.lock). flyte is held at **2.6.x on purpose**: `fork`
+(05 §6) lives in `flyteplugins-union`, which requires `flyte>=2.6.7,<2.7.0`. `uv sync` reproduces it byte-for-byte. Task-image pins live inside
 each notebook's `flyte.Image` definitions. To upgrade: edit the pin in `pyproject.toml`,
 run `uv lock` to refresh the lockfile, then `uv sync`.

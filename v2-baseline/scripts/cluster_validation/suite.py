@@ -37,6 +37,8 @@ import flyte.report
 from flyte.io import File
 from flyte.remote import Artifact
 
+# Artifact deletion isn't implemented server-side yet, so each run leaves one version
+# (named after the run) under each of these two fixed names.
 PROBE_ARTIFACT = "cluster-validation-probe"
 DECLARED_ARTIFACT = "cluster-validation-declared"
 
@@ -369,8 +371,7 @@ async def check_artifact_create(project: str, domain: str, version: str) -> tupl
     with open(local) as f:
         if f.read() != payload:
             return FAIL, "to_python() content does not match what was published"
-    await fetched.delete.aio()
-    return PASS, f"create -> get -> listall -> to_python -> delete round-tripped {created.tracker}"
+    return PASS, f"create -> get -> listall -> to_python round-tripped {created.tracker}"
 
 
 async def check_artifact_declared(project: str, domain: str, version: str) -> tuple[str, str]:
@@ -380,11 +381,11 @@ async def check_artifact_declared(project: str, domain: str, version: str) -> tu
     for _ in range(12):
         try:
             art = await Artifact.get.aio(DECLARED_ARTIFACT, version, project=project, domain=domain)
-            await art.delete.aio()
-            return PASS, f"artifacts.new() output registered by the backend as {art.tracker}"
         except Exception as e:
             last = e
             await asyncio.sleep(5)
+            continue
+        return PASS, f"artifacts.new() output registered by the backend as {art.tracker}"
     return FAIL, f"task with produces_artifacts=True succeeded but nothing registered after 60s: {_err(last)}"
 
 

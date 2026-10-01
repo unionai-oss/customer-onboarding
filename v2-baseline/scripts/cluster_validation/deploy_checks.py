@@ -4,22 +4,31 @@ suite.py covers everything that fits in a single `flyte run`. This script covers
 doesn't. For each capability it deploys, confirms it works from outside the cluster,
 and cleans up:
 
-  app           serve a throwaway HTTP app, wait for it to activate, GET its endpoint
-  schedule      deploy a minutely trigger and wait for it to actually launch a run
-                (the platform's own smoke test only checks that the trigger registers)
-  on-artifact   deploy a flyte.OnArtifact trigger, publish a new artifact version,
-                and wait for the triggered run
+  app                 serve a FastAPI app with a file parameter; GET /health and
+                      confirm the app read the file the platform downloaded for it
+  app-auth            serve an app with requires_auth=True; an unauthenticated
+                      request must be rejected
+  app-scale-to-zero   serve an app with replicas=(0, 1); wait for it to reach zero
+                      replicas, then time the cold start from a request
+  schedule            deploy a minutely trigger and wait for it to actually launch a
+                      run (the platform's own smoke test only checks registration)
+  on-artifact         deploy a flyte.OnArtifact trigger, publish a new artifact
+                      version, and wait for the triggered run
 
-    uv run python scripts/cluster_validation/deploy_checks.py                 # all
-    uv run python scripts/cluster_validation/deploy_checks.py app schedule    # a subset
+    uv run python scripts/cluster_validation/deploy_checks.py                     # all
+    uv run python scripts/cluster_validation/deploy_checks.py app app-auth        # a subset
 
 Uses the project/domain from your flyte config. For registries that need credentials,
-export IMAGE_PULL_SECRET=<image_pull secret name> first, the same as for suite.py. The app is deployed with
-requires_auth=False so the check can reach it without a token. It is a static file
-server with nothing behind it, and it is deleted when the check finishes.
+export IMAGE_PULL_SECRET=<image_pull secret name> first, the same as for suite.py.
+
+The `app` and `app-scale-to-zero` apps are deployed with requires_auth=False so the
+checks can reach them without a token. They expose only /health and /probe-file
+(the throwaway file this script uploads), and every app is deleted when its check
+finishes.
 """
 
 import os
+import socket
 import sys
 import tempfile
 import time
@@ -30,9 +39,11 @@ from pathlib import Path
 import flyte
 import flyte.app
 import flyte.remote as remote
+from fastapi import FastAPI
+from flyte.app import Parameter
+from flyte.app.extras import FastAPIAppEnvironment
 from flyte.io import File
 
-APP_NAME = "cv-http-probe"
 ARTIFACT_NAME = "cluster-validation-trigger-probe"
 
 # Name of an `image_pull` secret for registries that need credentials; see suite.py.
@@ -74,16 +85,50 @@ async def on_artifact(artifact: File) -> str:
     return Path(local).read_text()
 
 
-app_env = flyte.app.AppEnvironment(
-    name=APP_NAME,
-    command=["python", "-m", "http.server", "8080"],
-    port=8080,
-    image=IMAGE,
-    resources=flyte.Resources(cpu="250m", memory="256Mi"),
-    scaling=flyte.app.Scaling(replicas=(1, 1)),
-    requires_auth=False,
-    **PULL,
+# ── Apps ──────────────────────────────────────────────────────────────────────────────
+# One FastAPI object, served by three app environments that differ only in auth and
+# scaling. Each container re-imports this module and serves its env's `app`.
+
+PROBE_FILE_ENV = "CV_PROBE_FILE"
+api = FastAPI(title="cluster-validation probe")
+
+
+@api.get("/health")
+async def health() -> dict:
+    return {"status": "ok", "pod": socket.gethostname()}
+
+
+@api.get("/probe-file")
+async def probe_file() -> dict:
+    # With download=True the platform fetches the file parameter before start-up and
+    # puts its local path in this env var.
+    path = os.environ.get(PROBE_FILE_ENV, "")
+    return {"content": Path(path).read_text() if path and os.path.isfile(path) else None}
+
+
+APP_IMAGE = flyte.Image.from_debian_base(name="cv-app", registry_secret=PULL_SECRET or None).with_pip_packages(
+    "fastapi", "uvicorn"
 )
+
+
+def _app_env(name: str, *, requires_auth: bool = False, replicas=(1, 1), scaledown_after=None, parameters=()):
+    return FastAPIAppEnvironment(
+        name=name,
+        app=api,
+        image=APP_IMAGE,
+        resources=flyte.Resources(cpu="250m", memory="256Mi"),
+        scaling=flyte.app.Scaling(replicas=replicas, scaledown_after=scaledown_after),
+        requires_auth=requires_auth,
+        parameters=list(parameters),
+        **PULL,
+    )
+
+
+# Its value is a file uploaded at serve time (see check_app), so importing this module
+# in the container doesn't upload anything.
+app_env = _app_env("cv-app", parameters=[Parameter(name="probe", type="file", env_var=PROBE_FILE_ENV)])
+auth_app_env = _app_env("cv-app-auth", requires_auth=True)
+cold_app_env = _app_env("cv-app-coldstart", replicas=(0, 1), scaledown_after=60)
 
 
 def _wait_for_new_run(task_name: str, seen: set[str], timeout_s: int) -> remote.Run:
@@ -107,27 +152,103 @@ def _delete_trigger(name: str, task_name: str) -> None:
         print(f"      cleanup: could not delete trigger {name}: {e}", flush=True)
 
 
-def check_app() -> str:
+def _get_until(url: str, ok, timeout_s: int = 300, **kwargs):
+    """GET url until ok(response) holds. Retries while ingress/the pod come up."""
     import httpx
 
+    deadline = time.monotonic() + timeout_s
+    last = ""
+    while time.monotonic() < deadline:
+        try:
+            resp = httpx.get(url, timeout=30, **kwargs)
+            if ok(resp):
+                return resp
+            last = f"HTTP {resp.status_code}"
+        except httpx.HTTPError as e:
+            last = f"{type(e).__name__}: {e}"
+        time.sleep(10)
+    raise RuntimeError(f"{url} never returned the expected response within {timeout_s}s (last: {last})")
+
+
+def _delete_app(name: str) -> None:
     try:
-        flyte.serve(app_env)
-        app = remote.App.get(name=APP_NAME).watch(wait_for="activated")
-        endpoint = app.endpoint
-        deadline = time.monotonic() + 300
-        last = ""
-        while time.monotonic() < deadline:
-            try:
-                resp = httpx.get(endpoint, timeout=10, follow_redirects=True)
-                if resp.status_code == 200:
-                    return f"activated and served HTTP 200 at {endpoint}"
-                last = f"HTTP {resp.status_code}"
-            except httpx.HTTPError as e:
-                last = f"{type(e).__name__}: {e}"
-            time.sleep(10)
-        raise RuntimeError(f"app activated but {endpoint} never returned 200 (last: {last})")
+        remote.App.delete(name=name)
+    except Exception as e:
+        print(f"      cleanup: could not delete app {name}: {e}", flush=True)
+
+
+def _replicas(name: str) -> int:
+    return remote.App.get(name=name).pb2.status.current_replicas
+
+
+def check_app() -> str:
+    token = f"cv-{uuid.uuid4().hex[:8]}"
+    tmp = Path(tempfile.mkdtemp()) / "probe.txt"
+    tmp.write_text(token)
+    try:
+        flyte.with_servecontext(
+            parameter_values={app_env.name: {"probe": File.from_local_sync(str(tmp))}}
+        ).serve(app_env)
+        endpoint = remote.App.get(name=app_env.name).endpoint
+        pod = _get_until(f"{endpoint}/health", lambda r: r.status_code == 200).json()["pod"]
+        content = _get_until(f"{endpoint}/probe-file", lambda r: r.status_code == 200).json()["content"]
+        if content != token:
+            raise RuntimeError(f"app is up but the file parameter wasn't delivered (got {content!r})")
+        return f"FastAPI app on {pod} served /health and read its file parameter at {endpoint}"
     finally:
-        remote.App.delete(name=APP_NAME)
+        _delete_app(app_env.name)
+
+
+def check_app_auth() -> str:
+    try:
+        flyte.serve(auth_app_env)
+        endpoint = remote.App.get(name=auth_app_env.name).endpoint
+
+        # Rejected = 401/403, or a redirect to the login flow. Anything else (404/502/503)
+        # means the route isn't ready yet, so keep polling.
+        def decided(r):
+            return r.status_code in (200, 401, 403) or r.is_redirect
+
+        resp = _get_until(f"{endpoint}/health", decided, follow_redirects=False)
+        if resp.status_code == 200:
+            raise RuntimeError(f"requires_auth=True but {endpoint}/health answered an anonymous request")
+        where = f" -> {resp.headers.get('location', '')[:80]}" if resp.is_redirect else ""
+        return f"anonymous request rejected with HTTP {resp.status_code}{where}"
+    finally:
+        _delete_app(auth_app_env.name)
+
+
+def check_app_scale_to_zero() -> str:
+    name = cold_app_env.name
+    try:
+        flyte.serve(cold_app_env)
+        endpoint = remote.App.get(name=name).endpoint
+        _get_until(f"{endpoint}/health", lambda r: r.status_code == 200)
+
+        # current_replicas reads 0 when a backend doesn't report it, so only trust a 0
+        # after seeing it above 0.
+        reported = False
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline and not reported:
+            reported = _replicas(name) > 0
+            time.sleep(5)
+
+        if reported:
+            deadline = time.monotonic() + 600
+            while _replicas(name) > 0:
+                if time.monotonic() > deadline:
+                    raise RuntimeError("min replicas is 0 but the app was still running 10 min after its last request")
+                time.sleep(15)
+            idle = "scaled to 0 replicas"
+        else:
+            time.sleep(180)    # scaledown_after=60s plus scale-down grace
+            idle = "waited 180s idle (status.current_replicas isn't reported, so 0 replicas is unconfirmed)"
+
+        started = time.monotonic()
+        _get_until(f"{endpoint}/health", lambda r: r.status_code == 200)
+        return f"{idle}; cold start served /health in {time.monotonic() - started:.0f}s"
+    finally:
+        _delete_app(name)
 
 
 def check_schedule() -> str:
@@ -153,7 +274,8 @@ def check_on_artifact() -> str:
     try:
         tmp = Path(tempfile.mkdtemp()) / "probe.txt"
         tmp.write_text(f"artifact {version}\n")
-        art = remote.Artifact.create(File.from_local_sync(str(tmp)), name=ARTIFACT_NAME, version=version)
+        # Not deleted afterwards: artifact deletion isn't implemented server-side yet.
+        remote.Artifact.create(File.from_local_sync(str(tmp)), name=ARTIFACT_NAME, version=version)
         run = _wait_for_new_run(task_name, seen, timeout_s=300)
         run.wait(quiet=True)
         if run.phase != "succeeded":
@@ -161,13 +283,18 @@ def check_on_artifact() -> str:
         output = run.outputs()[0]
         if version not in output:
             raise RuntimeError(f"run {run.name} received a different artifact: {output!r}")
-        art.delete()
         return f"publishing {ARTIFACT_NAME}@{version} fired run {run.name}, which read it back"
     finally:
         _delete_trigger("cv_on_artifact", task_name)
 
 
-CHECKS = {"app": check_app, "schedule": check_schedule, "on-artifact": check_on_artifact}
+CHECKS = {
+    "app": check_app,
+    "app-auth": check_app_auth,
+    "app-scale-to-zero": check_app_scale_to_zero,
+    "schedule": check_schedule,
+    "on-artifact": check_on_artifact,
+}
 
 
 if __name__ == "__main__":
@@ -185,5 +312,5 @@ if __name__ == "__main__":
         except Exception as e:
             status, detail = "FAIL", f"{type(e).__name__}: {str(e)[:400]}"
             failed += 1
-        print(f"{status:5} {name:12} {detail}  [{time.monotonic() - started:.0f}s]", flush=True)
+        print(f"{status:5} {name:18} {detail}  [{time.monotonic() - started:.0f}s]", flush=True)
     sys.exit(1 if failed else 0)

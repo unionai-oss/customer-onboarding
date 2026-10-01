@@ -50,23 +50,27 @@ Pass `--strict false` to get the report without failing the run.
 | `queue` | named queue / cluster-pool routing (`--queue`) | an action routed via `override(queue=)` completes |
 | `secret` | secret injection (`--secret_key`) | the secret lands as an env var (only its length is returned) |
 | `metrics-workload` | execution metrics (**manual**) | INFO only: a 90s CPU + 256Mi task; open its Metrics tab |
-| `artifact-create` | artifact service, in-task `Artifact.create` | create → get → listall → `to_python` → delete round-trips |
+| `artifact-create` | artifact service, in-task `Artifact.create` | create → get → listall → `to_python` round-trips |
 | `artifact-declared` | backend-registered `artifacts.new()` | output of a `produces_artifacts=True` task is registered |
 
 ## `deploy_checks.py`: client-side checks (deploy/serve)
 
-These can't run inside a task, so they run on your machine and clean up after themselves:
+These can't run inside a task, so they run on your machine. Apps and triggers are deleted afterwards. Artifact versions are kept, because the artifact service can't delete them yet:
 
 ```bash
-uv run python scripts/cluster_validation/deploy_checks.py              # app, schedule, on-artifact
-uv run python scripts/cluster_validation/deploy_checks.py on-artifact  # just one
+uv run python scripts/cluster_validation/deploy_checks.py                  # all five
+uv run python scripts/cluster_validation/deploy_checks.py app app-auth     # a subset
 ```
 
 | Check | PASS when |
 |---|---|
-| `app` | a throwaway HTTP app activates and its endpoint returns 200 (deployed `requires_auth=False`, deleted afterwards) |
-| `schedule` | a minutely trigger *actually launches* a run that succeeds (trigger deleted afterwards) |
+| `app` | a FastAPI app (image built with `fastapi`/`uvicorn`) activates, `/health` returns 200, and `/probe-file` returns the contents of a file passed as an app `Parameter`. That proves the platform downloaded it from the object store into the app pod |
+| `app-auth` | with `requires_auth=True`, an anonymous request is rejected (401/403 or a redirect to login). FAIL if the app answers it |
+| `app-scale-to-zero` | an app with `replicas=(0, 1)` and `scaledown_after=60` reaches 0 replicas (`status.current_replicas`), then serves a request again. The detail reports the cold-start time. If the backend doesn't report replicas, it waits 180s and says 0 replicas is unconfirmed |
+| `schedule` | a minutely trigger *actually launches* a run that succeeds |
 | `on-artifact` | publishing an artifact version fires a `flyte.OnArtifact` run that reads that exact version |
+
+`app` and `app-scale-to-zero` deploy with `requires_auth=False` so the script can call them without a token. They only expose `/health` and the throwaway probe file.
 
 ## Reading results
 
